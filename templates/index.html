@@ -1,0 +1,194 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Music Recommendation System</title>
+    <style>
+        .error { color: red; font-size: 12px; display: none; }
+        .form-group { margin: 10px 0; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div id="login-form">
+        <h2>Login</h2>
+        <div class="form-group">
+            <label>Username:</label><br>
+            <input id="login-username" type="text">
+        </div>
+        <div class="form-group">
+            <label>Password:</label><br>
+            <input id="login-password" type="password">
+        </div>
+        <div id="login-error" class="error"></div>
+        <button onclick="login()">Login</button>
+        <button onclick="showRegister()">New User? Register</button>
+    </div>
+
+    <div id="register-form" class="hidden">
+        <h2>Register</h2>
+        <div class="form-group">
+            <label>Username:</label><br>
+            <input id="reg-username" type="text">
+            <div id="username-error" class="error"></div>
+        </div>
+        <div class="form-group">
+            <label>Password:</label><br>
+            <input id="reg-password" type="password">
+            <div id="password-error" class="error"></div>
+        </div>
+        <div class="form-group">
+            <label>Confirm Password:</label><br>
+            <input id="reg-confirm-password" type="password">
+            <div id="confirm-error" class="error"></div>
+        </div>
+        <div id="register-error" class="error"></div>
+        <button onclick="register()">Register</button>
+        <button onclick="showLogin()">Back to Login</button>
+    </div>
+
+    <div id="recommendation-form" class="hidden">
+        <h2>Get Recommendations</h2>
+        <div class="form-group">
+            <label>Enter a song name:</label><br>
+            <input id="song-input" placeholder="Enter song name">
+        </div>
+        <div class="form-group">
+            <label>Genre (optional):</label><br>
+            <select id="genre-input">
+                <option value="">Select genre</option>
+                {% for genre in genres %}
+                <option value="{{ genre }}">{{ genre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Year (optional):</label><br>
+            <select id="year-input">
+                <option value="">Select year</option>
+                {% for year in years %}
+                <option value="{{ year }}">{{ year }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Duration in seconds (optional):</label><br>
+            <input id="duration-input" type="number" placeholder="Enter duration">
+        </div>
+        <div class="form-group">
+            <label>Tempo (optional):</label><br>
+            <input id="tempo-input" type="number" placeholder="Enter tempo (60-180 BPM)">
+        </div>
+        <button onclick="getRecommendations()">Get Recommendations</button>
+        <div id="results"></div>
+    </div>
+
+    <script>
+        function showRegister() {
+            document.getElementById('login-form').style.display = 'none';
+            document.getElementById('register-form').style.display = 'block';
+            document.getElementById('forgot-password-form').style.display = 'none';
+        }
+
+        function showLogin() {
+            document.getElementById('login-form').style.display = 'block';
+            document.getElementById('register-form').style.display = 'none';
+            document.getElementById('forgot-password-form').style.display = 'none';
+        }
+
+        async function register() {
+            const username = document.getElementById('reg-username').value;
+            const password = document.getElementById('reg-password').value;
+            const confirmPassword = document.getElementById('reg-confirm-password').value;
+            
+            document.querySelectorAll('.error').forEach(e => e.style.display = 'none');
+            
+            if (password !== confirmPassword) {
+                document.getElementById('confirm-error').textContent = 'Passwords do not match';
+                document.getElementById('confirm-error').style.display = 'block';
+                return;
+            }
+
+            const response = await fetch('/register', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ username, password })
+            });
+            
+            if (response.ok) {
+                alert('Registration successful! Please login.');
+                showLogin();
+            } else {
+                const data = await response.json();
+                document.getElementById('register-error').textContent = data.error;
+                document.getElementById('register-error').style.display = 'block';
+            }
+        }
+
+        async function login() {
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+            
+            const response = await fetch('/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ username, password })
+            });
+
+            if (response.ok) {
+                document.getElementById('login-form').style.display = 'none';
+                document.getElementById('recommendation-form').style.display = 'block';
+            } else {
+                document.getElementById('login-error').textContent = 'Invalid credentials';
+                document.getElementById('login-error').style.display = 'block';
+            }
+        }
+
+        async function resetPassword() {
+            const email = document.getElementById('reset-email').value;
+            
+            const response = await fetch('/reset-password', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ email })
+            });
+
+            if (response.ok) {
+                alert('Password reset instructions have been sent to your email');
+                showLogin();
+            } else {
+                document.getElementById('reset-error').textContent = 'Email not found';
+                document.getElementById('reset-error').style.display = 'block';
+            }
+        }
+        
+        async function getRecommendations() {
+            const song = document.getElementById('song-input').value;
+            const genre = document.getElementById('genre-input').value;
+            const year = document.getElementById('year-input').value;
+            const duration = document.getElementById('duration-input').value;
+            const tempo = document.getElementById('tempo-input').value;
+            
+            if (!song) {
+                alert('Please enter a song name');
+                return;
+            }
+            
+            const response = await fetch('/recommend', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({song, genre, year, duration, tempo})
+            });
+            
+            const data = await response.json();
+            if (response.ok) {
+                document.getElementById('results').innerHTML = 
+                    'Recommendations for "' + data.song + '":<br>' +
+                    data.recommendations.join('<br>');
+            } else {
+                document.getElementById('results').innerHTML = 'Error: ' + data.error;
+            }
+        }
+    </script>
+</body>
+</html>
